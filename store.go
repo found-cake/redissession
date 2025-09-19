@@ -117,6 +117,12 @@ func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session
 	if err := s.crypto.DecryptAndVerify(encrypted, &session); err != nil {
 		return nil, err
 	}
+
+	if time.Now().After(session.ExpiresAt()) {
+		s.client.Del(ctx, key)
+		return nil, ErrSessionExpired
+	}
+
 	session.setName(name)
 	return &session, nil
 }
