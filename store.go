@@ -21,6 +21,12 @@ type RedisStore struct {
 	options *CookieOptions
 }
 
+var rotateSessionScript = redis.NewScript(`
+  redis.call('SET', KEYS[2], ARGV[1], 'PX', ARGV[2])
+  redis.call('DEL', KEYS[1])
+  return 1
+`)
+
 func NewRedisStore(client *redis.Client, keyPrefix string, crypto *Crypto, options *CookieOptions) *RedisStore {
 	return &RedisStore{
 		client:  client,
@@ -41,7 +47,7 @@ func (s *RedisStore) New(r *http.Request, name string) (*Session, error) {
 		loaded, err := s.load(r.Context(), name, cookie.Value)
 		if err == nil {
 			session = loaded
-			session.IsNew = false
+			session.setIsNew(false)
 		}
 	}
 	if session == nil {
@@ -50,23 +56,54 @@ func (s *RedisStore) New(r *http.Request, name string) (*Session, error) {
 			return nil, err
 		}
 		session = NewSession(id, time.Duration(s.options.MaxAge)*time.Second)
-		session.IsNew = true
+		session.setIsNew(true)
 	}
 	return session, nil
 }
 
 func (s *RedisStore) Save(r *http.Request, w http.ResponseWriter, session *Session) error {
-	key := s.redisKey(session.Name, session.ID)
+	key := s.redisKey(session.Name(), session.ID())
 	encrypted, err := s.crypto.EncryptAndSign(session)
 	if err != nil {
 		return err
 	}
-	ttl := time.Until(session.ExpiresAt)
+	ttl := time.Until(session.ExpiresAt())
 	if err := s.client.Set(r.Context(), key, encrypted, ttl).Err(); err != nil {
 		return err
 	}
 
-	http.SetCookie(w, s.options.NewCookie(session.Name, session.ID))
+	http.SetCookie(w, s.options.NewCookie(session.Name(), session.ID()))
+	return nil
+}
+
+func (s *RedisStore) RotateID(r *http.Request, w http.ResponseWriter, session *Session) error {
+	ctx := r.Context()
+
+	oldID := session.ID()
+	oldKey := s.redisKey(session.Name(), oldID)
+
+	newID, err := s.crypto.GenerateSessionID()
+	if err != nil {
+		return err
+	}
+	session.setID(newID)
+	newKey := s.redisKey(session.Name(), newID)
+
+	ttl := time.Until(session.ExpiresAt())
+	if ttl <= 0 {
+		ttl = time.Second
+	}
+
+	encrypted, err := s.crypto.EncryptAndSign(session)
+	if err != nil {
+		return err
+	}
+
+	if err := rotateSessionScript.Run(ctx, s.client, []string{oldKey, newKey}, encrypted, ttl.Milliseconds()).Err(); err != nil {
+		return err
+	}
+
+	http.SetCookie(w, s.options.NewCookie(session.Name(), session.ID()))
 	return nil
 }
 
@@ -80,7 +117,7 @@ func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session
 	if err := s.crypto.DecryptAndVerify(encrypted, &session); err != nil {
 		return nil, err
 	}
-	session.Name = name
+	session.setName(name)
 	return &session, nil
 }
 
