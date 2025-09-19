@@ -1,4 +1,4 @@
-module github.com/found-cake/go-session
+module github.com/found-cake/redissession
 
 go 1.24.5
 

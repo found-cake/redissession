@@ -1,4 +1,4 @@
-package session
+package redissession
 
 import "net/http"
 
