@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -134,7 +135,7 @@ func (c *Crypto) sign(data []byte) []byte {
 
 func (c *Crypto) verify(data, signature []byte) bool {
 	expected := c.sign(data)
-	return hmac.Equal(signature, expected)
+	return subtle.ConstantTimeCompare(signature, expected) == 1
 }
 
 func GenerateKey(length int) ([]byte, error) {
