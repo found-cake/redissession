@@ -58,6 +58,7 @@ func (s *RedisStore) New(r *http.Request, name string) (*Session, error) {
 		session = NewSession(id, time.Duration(s.options.MaxAge)*time.Second)
 		session.setIsNew(true)
 	}
+	session.setName(name)
 	return session, nil
 }
 
@@ -123,7 +124,6 @@ func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session
 		return nil, ErrSessionExpired
 	}
 
-	session.setName(name)
 	return &session, nil
 }
 
