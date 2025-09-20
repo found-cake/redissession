@@ -84,6 +84,23 @@ func TestCrypto_EncryptDecrypt(t *testing.T) {
 	}
 }
 
+func TestCrypto_AADMismatch(t *testing.T) {
+	crypto := setupTestCrypto(t)
+	type payload struct {
+		Msg string `json:"msg"`
+	}
+	in := payload{Msg: "hello"}
+
+	enc, err := crypto.EncryptAndSign(in, []byte("name-a"))
+	if err != nil {
+		t.Fatalf("EncryptAndSign: %v", err)
+	}
+	var out payload
+	if err := crypto.DecryptAndVerify(enc, &out, []byte("name-b")); err == nil {
+		t.Fatalf("expected AAD mismatch error, got nil")
+	}
+}
+
 func TestCrypto_SignatureTamper(t *testing.T) {
 	crypto := setupTestCrypto(t)
 	data := map[string]string{"msg": "hello"}
