@@ -134,8 +134,7 @@ func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session
 		return nil, err
 	}
 	var session Session
-	session.setName(name)
-	if err := s.crypto.DecryptAndVerify(encrypted, &session, []byte(session.Name())); err != nil {
+	if err := s.crypto.DecryptAndVerify(encrypted, &session, []byte(name)); err != nil {
 		return nil, err
 	}
 
