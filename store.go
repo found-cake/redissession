@@ -48,6 +48,19 @@ func (s *RedisStore) New(r *http.Request, name string) (*Session, error) {
 		if err == nil {
 			session = loaded
 			session.setIsNew(false)
+		} else {
+			if err == ErrSessionExpired || err == ErrSignatureInvalid || err == ErrInvalidSessionData || err == ErrEncryptionFailed {
+				delCookie := &http.Cookie{
+					Name:    name,
+					Value:   "",
+					Path:    "/",
+					MaxAge:  -1,
+					Expires: time.Unix(0, 0),
+				}
+				if rw, ok := r.Context().Value(http.ResponseWriter(nil)).(http.ResponseWriter); ok {
+					http.SetCookie(rw, delCookie)
+				}
+			}
 		}
 	}
 	if session == nil {
@@ -64,16 +77,21 @@ func (s *RedisStore) New(r *http.Request, name string) (*Session, error) {
 
 func (s *RedisStore) Save(r *http.Request, w http.ResponseWriter, session *Session) error {
 	key := s.redisKey(session.Name(), session.ID())
+	ttl := time.Until(session.ExpiresAt())
+
+	if ttl <= 0 {
+		return ErrSessionExpired
+	}
 	encrypted, err := s.crypto.EncryptAndSign(session)
 	if err != nil {
 		return err
 	}
-	ttl := time.Until(session.ExpiresAt())
 	if err := s.client.Set(r.Context(), key, encrypted, ttl).Err(); err != nil {
 		return err
 	}
 
-	http.SetCookie(w, s.options.NewCookie(session.Name(), session.ID()))
+	cookie := s.options.NewCookie(session)
+	http.SetCookie(w, cookie)
 	return nil
 }
 
@@ -104,7 +122,7 @@ func (s *RedisStore) RotateID(r *http.Request, w http.ResponseWriter, session *S
 		return err
 	}
 
-	http.SetCookie(w, s.options.NewCookie(session.Name(), session.ID()))
+	http.SetCookie(w, s.options.NewCookie(session))
 	return nil
 }
 

@@ -1,6 +1,9 @@
 package redissession
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type CookieOptions struct {
 	Path        string
@@ -12,13 +15,14 @@ type CookieOptions struct {
 	SameSite    http.SameSite
 }
 
-func (options *CookieOptions) NewCookie(name string, value string) *http.Cookie {
+func (options *CookieOptions) NewCookie(session *Session) *http.Cookie {
 	return &http.Cookie{
-		Name:        name,
-		Value:       value,
+		Name:        session.Name(),
+		Value:       session.ID(),
 		Path:        options.Path,
 		Domain:      options.Domain,
-		MaxAge:      options.MaxAge,
+		MaxAge:      int(time.Until(session.ExpiresAt()).Seconds()),
+		Expires:     session.ExpiresAt(),
 		Secure:      options.Secure,
 		HttpOnly:    options.HttpOnly,
 		Partitioned: options.Partitioned,
