@@ -71,12 +71,12 @@ func TestSession_ConcurrentAccess(t *testing.T) {
 func TestCrypto_EncryptDecrypt(t *testing.T) {
 	crypto := setupTestCrypto(t)
 	data := map[string]interface{}{"user": "alice", "id": 1}
-	enc, err := crypto.EncryptAndSign(data)
+	enc, err := crypto.EncryptAndSign(data, nil)
 	if err != nil {
 		t.Fatalf("EncryptAndSign error: %v", err)
 	}
 	var out map[string]interface{}
-	if err := crypto.DecryptAndVerify(enc, &out); err != nil {
+	if err := crypto.DecryptAndVerify(enc, &out, nil); err != nil {
 		t.Fatalf("DecryptAndVerify error: %v", err)
 	}
 	if out["user"] != "alice" {
@@ -87,7 +87,7 @@ func TestCrypto_EncryptDecrypt(t *testing.T) {
 func TestCrypto_SignatureTamper(t *testing.T) {
 	crypto := setupTestCrypto(t)
 	data := map[string]string{"msg": "hello"}
-	enc, err := crypto.EncryptAndSign(data)
+	enc, err := crypto.EncryptAndSign(data, []byte("test"))
 	if err != nil {
 		t.Fatalf("EncryptAndSign error: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestCrypto_SignatureTamper(t *testing.T) {
 	}
 	tampered := enc[:len(enc)-5] + "abcde"
 	var out map[string]string
-	err = crypto.DecryptAndVerify(tampered, &out)
+	err = crypto.DecryptAndVerify(tampered, &out, []byte("test"))
 	if err == nil {
 		t.Errorf("expected signature error, got nil")
 	}

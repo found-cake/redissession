@@ -82,7 +82,7 @@ func (s *RedisStore) Save(r *http.Request, w http.ResponseWriter, session *Sessi
 	if ttl <= 0 {
 		return ErrSessionExpired
 	}
-	encrypted, err := s.crypto.EncryptAndSign(session)
+	encrypted, err := s.crypto.EncryptAndSign(session, []byte(session.Name()))
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (s *RedisStore) RotateID(r *http.Request, w http.ResponseWriter, session *S
 		ttl = time.Second
 	}
 
-	encrypted, err := s.crypto.EncryptAndSign(session)
+	encrypted, err := s.crypto.EncryptAndSign(session, []byte(session.Name()))
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session
 		return nil, err
 	}
 	var session Session
-	if err := s.crypto.DecryptAndVerify(encrypted, &session); err != nil {
+	if err := s.crypto.DecryptAndVerify(encrypted, &session, []byte(session.Name())); err != nil {
 		return nil, err
 	}
 
