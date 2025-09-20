@@ -190,3 +190,101 @@ func TestRedisStore_Expiry(t *testing.T) {
 		t.Errorf("expired session should be new")
 	}
 }
+
+func TestRedisStore_RotateID(t *testing.T) {
+	client := setupTestRedis(t)
+	crypto := setupTestCrypto(t)
+	options := DefaultCookieOptions()
+	options.MaxAge = 10
+	options.Secure = false
+	options.Partitioned = false
+	options.SameSite = http.SameSiteDefaultMode
+	store := NewRedisStore(client, "test:", crypto, options)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	sess, err := store.New(req, "sess-rot")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	sess.Set("k", "v")
+	if err := store.Save(req, w, sess); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	oldID := sess.ID()
+	oldCookie := w.Result().Cookies()[0]
+
+	req2 := httptest.NewRequest("POST", "/rotate", nil)
+	w2 := httptest.NewRecorder()
+	if err := store.RotateID(req2, w2, sess); err != nil {
+		t.Fatalf("RotateID: %v", err)
+	}
+	newCookie := w2.Result().Cookies()[0]
+	if newCookie.Value == "" || newCookie.Value == oldID {
+		t.Fatalf("expected new cookie with new session id")
+	}
+
+	req3 := httptest.NewRequest("GET", "/", nil)
+	req3.AddCookie(newCookie)
+	sessNew, err := store.New(req3, "sess-rot")
+	if err != nil {
+		t.Fatalf("New after rotate: %v", err)
+	}
+	if sessNew.Get("k") != "v" {
+		t.Fatalf("rotated session lost data")
+	}
+
+	req4 := httptest.NewRequest("GET", "/", nil)
+	req4.AddCookie(oldCookie)
+	sessOld, err := store.New(req4, "sess-rot")
+	if err != nil {
+		t.Fatalf("New with old cookie: %v", err)
+	}
+	if !sessOld.IsNew() {
+		t.Fatalf("expected new session for old cookie")
+	}
+}
+
+func TestRedisStore_Destroy(t *testing.T) {
+	client := setupTestRedis(t)
+	crypto := setupTestCrypto(t)
+	options := DefaultCookieOptions()
+	options.MaxAge = 10
+	options.Secure = false
+	options.Partitioned = false
+	options.SameSite = http.SameSiteDefaultMode
+	store := NewRedisStore(client, "test:", crypto, options)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	sess, err := store.New(req, "sess-destroy")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	sess.Set("x", 1)
+	if err := store.Save(req, w, sess); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	cookie := w.Result().Cookies()[0]
+
+	req2 := httptest.NewRequest("POST", "/destroy", nil)
+	w2 := httptest.NewRecorder()
+	if err := store.Destroy(req2, w2, sess); err != nil {
+		t.Fatalf("Destroy: %v", err)
+	}
+
+	delCookies := w2.Result().Cookies()
+	if len(delCookies) == 0 || delCookies[0].MaxAge != -1 {
+		t.Fatalf("expected a deletion cookie")
+	}
+
+	req3 := httptest.NewRequest("GET", "/", nil)
+	req3.AddCookie(cookie)
+	sess2, err := store.New(req3, "sess-destroy")
+	if err != nil {
+		t.Fatalf("New after destroy: %v", err)
+	}
+	if !sess2.IsNew() || sess2.Get("x") != nil {
+		t.Fatalf("expected brand new session after destroy")
+	}
+}
