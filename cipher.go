@@ -64,7 +64,7 @@ func (c *Crypto) GenerateSessionID() (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate session ID: %w", err)
 	}
-	return base64.URLEncoding.EncodeToString(bytes), nil
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
 func (c *Crypto) EncryptAndSign(data interface{}, aad []byte) (string, error) {
@@ -88,39 +88,39 @@ func (c *Crypto) EncryptAndSign(data interface{}, aad []byte) (string, error) {
 }
 
 func (c *Crypto) DecryptAndVerify(encryptedData string, dest interface{}, aad []byte) error {
-    decoded, err := base64.StdEncoding.DecodeString(encryptedData)
-    if err != nil {
-        return fmt.Errorf("failed to decode base64: %w", err)
-    }
-    nonceSize := c.aead.NonceSize()
-    overhead := c.aead.Overhead()
-    if c.signingKey != nil {
-        minLength := 32 + nonceSize + overhead + 1
-        if len(decoded) < minLength {
-            return ErrInvalidSessionData
-        }
-        signature := decoded[:32]
-        ciphertext := decoded[32:]
-        if !c.verify(ciphertext, signature) {
-            return ErrSignatureInvalid
-        }
-        decoded = ciphertext
-    } else {
-        minLength := nonceSize + overhead + 1
-        if len(decoded) < minLength {
-            return ErrInvalidSessionData
-        }
-    }
-    nonce := decoded[:nonceSize]
-    ciphertext := decoded[nonceSize:]
-    plaintext, err := c.aead.Open(nil, nonce, ciphertext, aad)
-    if err != nil {
-        return ErrEncryptionFailed
-    }
-    if err := json.Unmarshal(plaintext, dest); err != nil {
-        return fmt.Errorf("failed to unmarshal data: %w", err)
-    }
-    return nil
+	decoded, err := base64.StdEncoding.DecodeString(encryptedData)
+	if err != nil {
+		return fmt.Errorf("failed to decode base64: %w", err)
+	}
+	nonceSize := c.aead.NonceSize()
+	overhead := c.aead.Overhead()
+	if c.signingKey != nil {
+		minLength := 32 + nonceSize + overhead + 1
+		if len(decoded) < minLength {
+			return ErrInvalidSessionData
+		}
+		signature := decoded[:32]
+		ciphertext := decoded[32:]
+		if !c.verify(ciphertext, signature) {
+			return ErrSignatureInvalid
+		}
+		decoded = ciphertext
+	} else {
+		minLength := nonceSize + overhead + 1
+		if len(decoded) < minLength {
+			return ErrInvalidSessionData
+		}
+	}
+	nonce := decoded[:nonceSize]
+	ciphertext := decoded[nonceSize:]
+	plaintext, err := c.aead.Open(nil, nonce, ciphertext, aad)
+	if err != nil {
+		return ErrEncryptionFailed
+	}
+	if err := json.Unmarshal(plaintext, dest); err != nil {
+		return fmt.Errorf("failed to unmarshal data: %w", err)
+	}
+	return nil
 }
 
 func (c *Crypto) sign(data []byte) []byte {

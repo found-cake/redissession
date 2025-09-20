@@ -2,6 +2,7 @@ package redissession
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -127,6 +128,9 @@ func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session
 	key := s.redisKey(name, sessionID)
 	encrypted, err := s.client.Get(ctx, key).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, ErrSessionNotFound
+		}
 		return nil, err
 	}
 	var session Session
