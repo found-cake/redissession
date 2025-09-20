@@ -118,7 +118,7 @@ func (s *RedisStore) Destroy(r *http.Request, w http.ResponseWriter, session *Se
 	if err := s.client.Del(r.Context(), key).Err(); err != nil {
 		return err
 	}
-	expiredCookie := s.options.RemoveCookie(session.name)
+	expiredCookie := s.options.RemoveCookie(session.Name())
 	http.SetCookie(w, expiredCookie)
 	return nil
 }
