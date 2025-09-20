@@ -30,6 +30,21 @@ func (options *CookieOptions) NewCookie(session *Session) *http.Cookie {
 	}
 }
 
+func (options *CookieOptions) RemoveCookie(name string) *http.Cookie {
+	return &http.Cookie{
+		Name:        name,
+		Value:       "",
+		Path:        options.Path,
+		Domain:      options.Domain,
+		MaxAge:      -1,
+		Expires:     time.Unix(0, 0),
+		Secure:      options.Secure,
+		HttpOnly:    options.HttpOnly,
+		Partitioned: options.Partitioned,
+		SameSite:    options.SameSite,
+	}
+}
+
 func DefaultCookieOptions() *CookieOptions {
 	return &CookieOptions{
 		Path:     "/",

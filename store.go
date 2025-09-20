@@ -126,6 +126,16 @@ func (s *RedisStore) RotateID(r *http.Request, w http.ResponseWriter, session *S
 	return nil
 }
 
+func (s *RedisStore) Destroy(r *http.Request, w http.ResponseWriter, session *Session) error {
+	key := s.redisKey(session.Name(), session.ID())
+	if err := s.client.Del(r.Context(), key).Err(); err != nil {
+		return err
+	}
+	expiredCookie := s.options.RemoveCookie(session.name)
+	http.SetCookie(w, expiredCookie)
+	return nil
+}
+
 func (s *RedisStore) load(ctx context.Context, name, sessionID string) (*Session, error) {
 	key := s.redisKey(name, sessionID)
 	encrypted, err := s.client.Get(ctx, key).Result()
