@@ -152,6 +152,11 @@ func (s *RedisStore) redisKey(name string, sessionID string) string {
 
 type storeContextKey struct{}
 
+func WithStore(r *http.Request, store Store) *http.Request {
+    ctx := context.WithValue(r.Context(), storeContextKey{}, store)
+    return r.WithContext(ctx)
+}
+
 func GetStore(r *http.Request) (Store, error) {
 	if store, ok := r.Context().Value(storeContextKey{}).(Store); ok {
 		return store, nil
