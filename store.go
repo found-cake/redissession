@@ -9,12 +9,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type Store interface {
-	Get(r *http.Request, name string) (*Session, error)
-	New(r *http.Request, name string) (*Session, error)
-	Save(r *http.Request, w http.ResponseWriter, session *Session) error
-}
-
 type RedisStore struct {
 	client  *redis.Client
 	prefix  string
@@ -152,13 +146,13 @@ func (s *RedisStore) redisKey(name string, sessionID string) string {
 
 type storeContextKey struct{}
 
-func WithStore(r *http.Request, store Store) *http.Request {
-    ctx := context.WithValue(r.Context(), storeContextKey{}, store)
-    return r.WithContext(ctx)
+func WithStore(r *http.Request, store RedisStore) *http.Request {
+	ctx := context.WithValue(r.Context(), storeContextKey{}, store)
+	return r.WithContext(ctx)
 }
 
-func GetStore(r *http.Request) (Store, error) {
-	if store, ok := r.Context().Value(storeContextKey{}).(Store); ok {
+func GetStore(r *http.Request) (*RedisStore, error) {
+	if store, ok := r.Context().Value(storeContextKey{}).(*RedisStore); ok {
 		return store, nil
 	}
 	return nil, ErrStoreNotFound
