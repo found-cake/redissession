@@ -112,6 +112,22 @@ func (s *Session) Save(r *http.Request, w http.ResponseWriter) error {
 	return store.Save(r, w, s)
 }
 
+func (s *Session) RotateID(r *http.Request, w http.ResponseWriter) error {
+	store, err := GetStore(r)
+	if err != nil {
+		return err
+	}
+	return store.RotateID(r, w, s)
+}
+
+func (s *Session) Destroy(r *http.Request, w http.ResponseWriter) error {
+	store, err := GetStore(r)
+	if err != nil {
+		return err
+	}
+	return store.Destroy(r, w, s)
+}
+
 func (s *Session) setName(name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
