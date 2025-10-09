@@ -16,12 +16,6 @@ type RedisStore struct {
 	options *CookieOptions
 }
 
-var rotateSessionScript = redis.NewScript(`
-  redis.call('SET', KEYS[2], ARGV[1], 'PX', ARGV[2])
-  redis.call('DEL', KEYS[1])
-  return 1
-`)
-
 func NewRedisStore(client *redis.Client, keyPrefix string, crypto *Crypto, options *CookieOptions) *RedisStore {
 	return &RedisStore{
 		client:  client,
@@ -100,7 +94,10 @@ func (s *RedisStore) RotateID(r *http.Request, w http.ResponseWriter, session *S
 		return err
 	}
 
-	if err := rotateSessionScript.Run(ctx, s.client, []string{oldKey, newKey}, encrypted, ttl.Milliseconds()).Err(); err != nil {
+	pipe := s.client.TxPipeline()
+	pipe.Set(ctx, newKey, encrypted, ttl)
+	pipe.Del(ctx, oldKey)
+	if _, err := pipe.Exec(ctx); err != nil {
 		return err
 	}
 
