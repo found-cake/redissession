@@ -1,4 +1,6 @@
 name: Go Test with Redis
+permissions:
+  contents: read
 
 on:
   push:
