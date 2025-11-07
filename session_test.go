@@ -68,6 +68,18 @@ func TestSession_ConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestCrypto_ReadRandFull(t *testing.T) {
+	crypto := setupTestCrypto(t)
+	buf := make([]byte, 64)
+	err := crypto.RandReadFull(buf)
+	if err != nil {
+		t.Fatalf("RandReadFull error: %v", err)
+	}
+	if len(buf) != 64 {
+		t.Errorf("RandReadFull length mismatch: want 64, got %d", len(buf))
+	}
+}
+
 func TestCrypto_EncryptDecrypt(t *testing.T) {
 	crypto := setupTestCrypto(t)
 	data := map[string]interface{}{"user": "alice", "id": 1}

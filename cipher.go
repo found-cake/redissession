@@ -11,19 +11,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
 type Crypto struct {
-	aead       cipher.AEAD
-	signingKey []byte
+	aead        cipher.AEAD
+	signingKey  []byte
+	randRetries int           // default 3
+	backoff     time.Duration // default 10ms
 }
 
 func NewCrypto(aead cipher.AEAD, signingKey []byte) *Crypto {
 	return &Crypto{
-		aead:       aead,
-		signingKey: signingKey,
+		aead:        aead,
+		signingKey:  signingKey,
+		randRetries: 3,
+		backoff:     10 * time.Millisecond,
 	}
 }
 
@@ -59,9 +64,32 @@ func NewXChaCha20Poly1305(key []byte) (cipher.AEAD, error) {
 	return aead, nil
 }
 
+func (c *Crypto) SetRandRetries(retries int) {
+	c.randRetries = retries
+}
+
+func (c *Crypto) SetBackoff(d time.Duration) {
+	c.backoff = d
+}
+
+func (c *Crypto) RandReadFull(b []byte) error {
+	var err error
+	attempts := c.randRetries + 1
+	for i := 0; i < attempts; i++ {
+		_, err = io.ReadFull(rand.Reader, b)
+		if err == nil {
+			return nil
+		}
+		if i < c.randRetries {
+			time.Sleep(c.backoff)
+		}
+	}
+	return fmt.Errorf("failed to read random bytes after %d attempts: %w (type: %T)", attempts, err, err)
+}
+
 func (c *Crypto) GenerateSessionID() (string, error) {
 	bytes := make([]byte, 32) // 256 bits
-	if _, err := rand.Read(bytes); err != nil {
+	if err := c.RandReadFull(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate session ID: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(bytes), nil
@@ -73,7 +101,7 @@ func (c *Crypto) EncryptAndSign(data interface{}, aad []byte) (string, error) {
 		return "", fmt.Errorf("failed to marshal data: %w", err)
 	}
 	nonce := make([]byte, c.aead.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	if err := c.RandReadFull(nonce); err != nil {
 		return "", fmt.Errorf("failed to generate nonce: %w", err)
 	}
 	ciphertext := c.aead.Seal(nonce, nonce, jsonData, aad)
