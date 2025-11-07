@@ -10,6 +10,11 @@ on:
 
 jobs:
   test:
+    strategy:
+      matrix:
+        go-version: [ '1.24', '1.25' ]
+    
+    name: Go ${{ matrix.go-version }}
     runs-on: ubuntu-latest
 
     services:
@@ -29,7 +34,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version:  ${{ matrix.go-version }}
 
     - name: Install dependencies
       run: go mod tidy
