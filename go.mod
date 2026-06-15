@@ -3,7 +3,7 @@ module github.com/found-cake/redissession
 go 1.25.0
 
 require (
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 	golang.org/x/crypto v0.53.0
 )
 
