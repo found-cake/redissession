@@ -1,10 +1,10 @@
 module github.com/found-cake/redissession
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/redis/go-redis/v9 v9.22.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 )
 
 require (
