@@ -15,7 +15,7 @@ A Redis-backed, encrypted, thread-safe HTTP session store for Go.
 go get github.com/found-cake/redissession
 ```
 
-Go version: see [go.mod](./go.mod) (currently Go 1.24).
+Go version: see [go.mod](./go.mod) (currently Go 1.25).
 
 ---
 
